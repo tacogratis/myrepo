@@ -1,0 +1,24 @@
+{
+  "name": "myrepo",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/tacogratis/myrepo#readme",
+  "bugs": {
+    "url": "https://github.com/tacogratis/myrepo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tacogratis/myrepo.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.16.0",
+    "tunnel": "^0.0.6"
+  }
+}

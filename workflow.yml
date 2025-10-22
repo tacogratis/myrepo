@@ -1,0 +1,34 @@
+name: CI Build and Security Scan
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Phylum OSS Supply Chain Security Scan
+        uses: phylum-dev/phylum-action@v2
+        id: phylum-scan
+        with:
+          api-key: ${{ secrets.PHYLUM_API_KEY }} 
+          directory: '.' 
+          sbom-format: 'cyclonedx' 
+          
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phylum-sbom
+          # The exact path to the generated SBOM will depend on the action's output/configuration
+          path: phylum-security-report.cdx.json # Check Phylum documentation for exact filename
+          retention-days: 5

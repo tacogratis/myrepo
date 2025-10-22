@@ -5,36 +5,36 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      
     steps:
-      - name: Checkout repository
+      - name: ⬇️ Checkout code (Full History)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
+      - name: 📦 Set up Node.js and Install dependencies
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - run: npm install
 
-      - name: Install dependencies
-        run: npm install
+      - name: 🛠️ Install Phylum CLI
+        run: curl -sSfL https://sh.phylum.io/ | sh -s -- -b /usr/local/bin
 
-      - name: Phylum OSS Supply Chain Security Scan
-        uses: phylum-dev/phylum-analyze-pr-action@v2
-        id: phylum-scan
-        with:
-          phylum_token: ${{ secrets.PHYLUM_API_KEY }} 
-          args: >
-            analyze 
-            --sbom-format cyclonedx 
-            --policy-fail-level high
-            --output phylum-security-report.cdx.json
-            .
 
-      - name: Upload SBOM
+      - name: 🛡️ Run Phylum Analysis and Generate SBOM File
+        run: |
+          phylum auth set-token ${{ secrets.PHYLUM_API_KEY }}
+          phylum analyze --json --sbom-format cyclonedx . > phylum-security-report.cdx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⬆️ Upload SBOM Artifact
         uses: actions/upload-artifact@v4
         with:
           name: phylum-sbom
-          # The exact path to the generated SBOM will depend on the action's output/configuration
-          path: phylum-security-report.cdx.json # Check Phylum documentation for exact filename
+          path: phylum-security-report.cdx.json 
           retention-days: 5

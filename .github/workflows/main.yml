@@ -18,7 +18,7 @@ jobs:
         run: npm install
 
       - name: Phylum OSS Supply Chain Security Scan
-        uses: phylum-dev/phylum-action@v2
+        uses: phylum-dev/phylum-analyze-pr-action@v2
         id: phylum-scan
         with:
           api-key: ${{ secrets.PHYLUM_API_KEY }} 

@@ -28,6 +28,7 @@ jobs:
             analyze 
             --sbom-format cyclonedx 
             --policy-fail-level high
+            --output phylum-security-report.cdx.json
             .
 
       - name: Upload SBOM

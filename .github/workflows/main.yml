@@ -27,8 +27,8 @@ jobs:
             --sbom-format cyclonedx 
             --policy-fail-level high
             .
-            
-      - name: Upload SBOM Artifact
+
+      - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
           name: phylum-sbom

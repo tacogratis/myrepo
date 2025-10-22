@@ -21,10 +21,13 @@ jobs:
         uses: phylum-dev/phylum-analyze-pr-action@v2
         id: phylum-scan
         with:
-          api-key: ${{ secrets.PHYLUM_API_KEY }} 
-          directory: '.' 
-          sbom-format: 'cyclonedx' 
-          
+          phylum_token: ${{ secrets.PHYLUM_API_KEY }} 
+          args: >
+            analyze 
+            --sbom-format cyclonedx 
+            --policy-fail-level high
+            .
+            
       - name: Upload SBOM Artifact
         uses: actions/upload-artifact@v4
         with:

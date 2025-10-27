@@ -37,11 +37,18 @@ jobs:
           sbom: "my-project-sbom.cdx.json"
           upload-sarif: true
           fail-on-severity: "high"
-          
-      - name: Generate and Upload Raw Grype JSON Report
+
+      - name: Generate and Upload Raw Grype JSON Report ⬆️
         if: github.event_name == 'release' && github.event.action == 'published'
         run: |
-          grype sbom:my-project-sbom.cdx.json -o json > grype-report.json
+          # Use the variable from the previous step to ensure the path is correct.
+          SBOM_PATH="${{ steps.sbom.outputs.sbom-path }}"
+          
+          # Run Grype, passing the SBOM path with the required 'sbom:' prefix.
+          # The SBOM file is passed cleanly from the artifact created by Syft.
+          grype sbom:"$SBOM_PATH" -o json > grype-report.json
+          
+          # Use the GitHub CLI (gh) to upload the raw JSON vulnerability report
           gh release upload ${{ github.event.release.tag_name }} grype-report.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

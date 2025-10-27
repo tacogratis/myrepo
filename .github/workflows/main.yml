@@ -1,40 +1,57 @@
-name: CI Build and Security Scan
+name: SBOM and Vulnerability Release Pipeline
 
-on: [push, pull_request]
+on:
+  push:
+    # Trigger on pushes to the main branch
+    branches:
+      - main
+  pull_request:
+    # Trigger on all Pull Requests
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
-  build:
+  sbom_and_vulnerability_scan:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: write
-      
+      contents: write 
+
     steps:
-      - name: ⬇️ Checkout code (Full History)
+      - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Generate SBOM (Syft) and Upload to Release
+        uses: anchore/sbom-action@v0
+        id: sbom
         with:
-          fetch-depth: 0
+          path: "."
+          output-file: "my-project-sbom.cdx.json"
+          format: "cyclonedx-json"
+          upload-release-assets: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📦 Set up Node.js and Install dependencies
-        uses: actions/setup-node@v4
+      - name: Scan SBOM and Upload SARIF (Grype)
+        uses: anchore/scan-action@v3
         with:
-          node-version: '20'
-      - run: npm install
-
-      - name: 🛠️ Install Phylum CLI
-        run: curl -sSfL https://sh.phylum.io/ | sh -s -- -b /usr/local/bin
-
-
-      - name: 🛡️ Run Phylum Analysis and Generate SBOM File
+          sbom: "my-project-sbom.cdx.json"
+          upload-sarif: true
+          fail-on-severity: "high"
+          
+      - name: Generate and Upload Raw Grype JSON Report
+        if: github.event_name == 'release' && github.event.action == 'published'
         run: |
-          phylum auth set-token ${{ secrets.PHYLUM_API_KEY }}
-          phylum analyze --json --sbom-format cyclonedx . > phylum-security-report.cdx.json
+          grype sbom:my-project-sbom.cdx.json -o json > grype-report.json
+          gh release upload ${{ github.event.release.tag_name }} grype-report.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: ⬆️ Upload SBOM Artifact
+          
+      - name: Upload Reports as Workflow Artifacts (All Runs)
         uses: actions/upload-artifact@v4
         with:
-          name: phylum-sbom
-          path: phylum-security-report.cdx.json 
-          retention-days: 5
+          name: sbom-and-vulnerability-reports
+          path: |
+            my-project-sbom.cdx.json
+            grype-report.json
+            *.sarif.json
+          retention-days: 7

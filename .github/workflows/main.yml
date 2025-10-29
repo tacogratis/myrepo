@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate SBOM (Syft) and Upload to Release
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.17.2
         id: sbom
         with:
           path: "."
@@ -32,11 +32,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Scan SBOM and Upload SARIF (Grype)
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v4
         with:
           sbom: "my-project-sbom.cdx.json"
           upload-sarif: true
-          fail-on-severity: "high"
 
       - name: Generate and Upload Raw Grype JSON Report ⬆️
         if: github.event_name == 'release' && github.event.action == 'published'

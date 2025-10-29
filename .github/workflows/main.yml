@@ -1,37 +1,63 @@
-name: CI Build and Security Scan
+name: SBOM and Vulnerability Release Pipeline
 
-on: [push, pull_request]
+on:
+  push:
+    # Trigger on pushes to the main branch
+    branches:
+      - main
+  pull_request:
+    # Trigger on all Pull Requests
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
-  build:
+  sbom_and_vulnerability_scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Generate SBOM (Syft) and Upload to Release
+        uses: anchore/sbom-action@v0.17.2
+        id: sbom
         with:
-          node-version: '20'
+          path: "."
+          output-file: "my-project-sbom.cdx.json"
+          format: "cyclonedx-json"
+          upload-release-assets: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Phylum OSS Supply Chain Security Scan
-        uses: phylum-dev/phylum-analyze-pr-action@v2
-        id: phylum-scan
+      - name: Scan SBOM and Upload SARIF (Grype)
+        uses: anchore/scan-action@v4
         with:
-          phylum_token: ${{ secrets.PHYLUM_API_KEY }} 
-          args: >
-            analyze 
-            --sbom-format cyclonedx 
-            --policy-fail-level high
-            .
-            
-      - name: Upload SBOM Artifact
+          sbom: "my-project-sbom.cdx.json"
+          upload-sarif: true
+
+      - name: Generate and Upload Raw Grype JSON Report ⬆️
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          # Use the variable from the previous step to ensure the path is correct.
+          SBOM_PATH="${{ steps.sbom.outputs.sbom-path }}"
+          
+          # Run Grype, passing the SBOM path with the required 'sbom:' prefix.
+          # The SBOM file is passed cleanly from the artifact created by Syft.
+          grype sbom:"$SBOM_PATH" -o json > grype-report.json
+          
+          # Use the GitHub CLI (gh) to upload the raw JSON vulnerability report
+          gh release upload ${{ github.event.release.tag_name }} grype-report.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Reports as Workflow Artifacts (All Runs)
         uses: actions/upload-artifact@v4
         with:
-          name: phylum-sbom
-          # The exact path to the generated SBOM will depend on the action's output/configuration
-          path: phylum-security-report.cdx.json # Check Phylum documentation for exact filename
-          retention-days: 5
+          name: sbom-and-vulnerability-reports
+          path: |
+            my-project-sbom.cdx.json
+            grype-report.json
+            *.sarif.json
+          retention-days: 7
